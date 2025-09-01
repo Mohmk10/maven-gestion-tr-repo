@@ -2,62 +2,156 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <modelVersion>4.0.0</modelVersion>
+  <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.repo_gestion_tr</groupId>
-    <artifactId>repo_gestion_tr</artifactId>
-    <version>1.0-SNAPSHOT</version>
+  <!-- Identité publique (doit correspondre à ton namespace validé) -->
+  <groupId>io.github.mohmk10</groupId>
+  <artifactId>repo-gestion-tr</artifactId>
+  <version>1.0.0</version>
+  <packaging>jar</packaging>
 
-    <properties>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <maven.compiler.release>21</maven.compiler.release>
-        <hibernate.version>6.5.2.Final</hibernate.version>
-        <jakarta.persistence.version>3.2.0</jakarta.persistence.version>
-    </properties>
+  <name>repo-gestion-tr</name>
+  <description>Dépôt des repositories JDBC &amp; JPA (MySQL local, PostgreSQL Neon) pour le projet gestion-transaction.</description>
+  <url>https://github.com/Mohmk10/repo_gestion_tr</url>
 
+  <licenses>
+    <license>
+      <name>Apache License, Version 2.0</name>
+      <url>https://www.apache.org/licenses/LICENSE-2.0</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
 
-    <dependencies>
-      <!-- API JPA (Jakarta) -->
-      <dependency>
-        <groupId>jakarta.persistence</groupId>
-        <artifactId>jakarta.persistence-api</artifactId>
-        <version>${jakarta.persistence.version}</version>
-      </dependency>
+  <developers>
+    <developer>
+      <id>Mohmk10</id>
+      <name>Mohamed M. Kouyaté</name>
+      <url>https://github.com/Mohmk10</url>
+    </developer>
+  </developers>
 
-      <!-- Hibernate (implémentation JPA) -->
-      <dependency>
-        <groupId>org.hibernate.orm</groupId>
-        <artifactId>hibernate-core</artifactId>
-        <version>${hibernate.version}</version>
-      </dependency>
+  <scm>
+    <url>https://github.com/Mohmk10/repo_gestion_tr</url>
+    <connection>scm:git:https://github.com/Mohmk10/repo_gestion_tr.git</connection>
+    <developerConnection>scm:git:ssh://git@github.com/Mohmk10/repo_gestion_tr.git</developerConnection>
+    <tag>HEAD</tag>
+  </scm>
 
-      <!-- Driver PostgreSQL (Neon) -->
-      <dependency>
-        <groupId>org.postgresql</groupId>
-        <artifactId>postgresql</artifactId>
-        <version>42.7.3</version>
-      </dependency>
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.release>21</maven.compiler.release>
+    <hibernate.version>6.5.2.Final</hibernate.version>
+    <jakarta.persistence.version>3.2.0</jakarta.persistence.version>
+    <!-- Optionnel mais propre pour JPMS -->
+    <automodule.name>io.github.mohmk10.repogestiontr</automodule.name>
+  </properties>
 
-      <!-- JDBC MySQL (si tu compiles aussi les impl JDBC) -->
-      <dependency>
-        <groupId>com.mysql</groupId>
-        <artifactId>mysql-connector-j</artifactId>
-        <version>9.1.0</version>
-      </dependency>
-    </dependencies>
+  <dependencies>
+    <!-- API JPA -->
+    <dependency>
+      <groupId>jakarta.persistence</groupId>
+      <artifactId>jakarta.persistence-api</artifactId>
+      <version>${jakarta.persistence.version}</version>
+    </dependency>
 
-    <build>
-      <plugins>
-        <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-compiler-plugin</artifactId>
-            <version>3.11.0</version>
-            <configuration>
-              <release>${maven.compiler.release}</release>
-            </configuration>
-        </plugin>
-      </plugins>
-    </build>
+    <!-- Hibernate (impl JPA) -->
+    <dependency>
+      <groupId>org.hibernate.orm</groupId>
+      <artifactId>hibernate-core</artifactId>
+      <version>${hibernate.version}</version>
+    </dependency>
 
+    <!-- Driver PostgreSQL (JPA/Postgres Neon) -->
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <version>42.7.3</version>
+      <scope>runtime</scope>
+    </dependency>
 
+    <!-- Driver MySQL (JDBC local) -->
+    <dependency>
+      <groupId>com.mysql</groupId>
+      <artifactId>mysql-connector-j</artifactId>
+      <version>9.1.0</version>
+      <scope>runtime</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <!-- Java 21 -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.11.0</version>
+        <configuration>
+          <release>${maven.compiler.release}</release>
+        </configuration>
+      </plugin>
+
+      <!-- Jar sources -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-source-plugin</artifactId>
+        <version>3.3.0</version>
+        <executions>
+          <execution>
+            <id>attach-sources</id>
+            <goals><goal>jar</goal></goals>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!-- Jar javadoc -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-javadoc-plugin</artifactId>
+        <version>3.6.3</version>
+        <configuration>
+          <failOnError>false</failOnError>
+        </configuration>
+        <executions>
+          <execution>
+            <id>attach-javadocs</id>
+            <goals><goal>jar</goal></goals>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!-- Signature GPG (obligatoire pour Central) -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-gpg-plugin</artifactId>
+        <version>3.2.4</version>
+        <executions>
+          <execution>
+            <id>sign-artifacts</id>
+            <phase>verify</phase>
+            <goals><goal>sign</goal></goals>
+          </execution>
+        </executions>
+        <configuration>
+          <keyname>BDAD78C9E33EF532C88ED50D82BAB4477F5CB2D1</keyname>
+          <gpgArguments>
+            <arg>--batch</arg><arg>--pinentry-mode</arg><arg>loopback</arg>
+          </gpgArguments>
+        </configuration>
+      </plugin>
+
+      <!-- Optionnel : Automatic-Module-Name -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <version>3.4.2</version>
+        <configuration>
+          <archive>
+            <manifestEntries>
+              <Automatic-Module-Name>${automodule.name}</Automatic-Module-Name>
+            </manifestEntries>
+          </archive>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
 </project>
