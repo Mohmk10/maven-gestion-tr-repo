@@ -12,74 +12,37 @@ import java.util.List;
 
 public final class CompteRepositoryJdbc implements CompteRepository {
 
-    private Compte mapCompte(ResultSet rs) throws SQLException {
-        int id = rs.getInt("id");
-        String numero = rs.getString("numero");
-        BigDecimal solde = rs.getBigDecimal("solde");
-        LocalDate dateOuverture = rs.getDate("date_ouverture").toLocalDate();
-        String disc = rs.getString("type_compte");
-
-        if ("EPARGNE".equalsIgnoreCase(disc)) {
-            Date d = rs.getDate("date_debut_blocage");
-            LocalDate dateDebut = (d != null) ? d.toLocalDate() : null;
-            Integer duree = (Integer) rs.getObject("duree_blocage_mois");
-            return new CompteEpargne(id, numero, solde, dateOuverture, dateDebut, duree);
-        } else {
-            return new CompteCheque(id, numero, solde, dateOuverture);
-        }
-    }
-
     @Override
     public Compte save(Compte c) {
-        boolean insert = (c.getId() == null || c.getId() == 0);
+        final String sql = """
+            INSERT INTO compte (numero, solde, date_ouverture, type_compte, date_debut_blocage, duree_blocage_mois)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """;
+        try (Connection cn = MysqlData.getConnection();
+             PreparedStatement ps = cn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
-        final String sqlInsert =
-            "INSERT INTO compte (numero, solde, date_ouverture, type_compte, type_enum, date_debut_blocage, duree_blocage_mois) " +
-            "VALUES (?,?,?,?,?,?,?)";
-        final String sqlUpdate =
-            "UPDATE compte SET numero=?, solde=?, date_ouverture=?, type_compte=?, type_enum=?, " +
-            "date_debut_blocage=?, duree_blocage_mois=? WHERE id=?";
-
-        try (Connection cn = MysqlData.getConnection()) {
-            if (insert) {
-                try (PreparedStatement ps = cn.prepareStatement(sqlInsert, Statement.RETURN_GENERATED_KEYS)) {
-                    fill(ps, c);
-                    ps.executeUpdate();
-                    try (ResultSet gk = ps.getGeneratedKeys()) {
-                        if (gk.next()) return findById(gk.getInt(1));
-                    }
-                    throw new SQLException("INSERT compte : pas de clé générée");
-                }
+            ps.setString(1, c.getNumero());
+            ps.setBigDecimal(2, c.getSolde());
+            ps.setDate(3, Date.valueOf(c.getDateOuverture()));
+            ps.setString(4, c.getType().name());
+            if (c instanceof CompteEpargne e) {
+                ps.setDate(5, e.getDateDebut() == null ? null : Date.valueOf(e.getDateDebut()));
+                ps.setObject(6, e.getDureeBlocage(), Types.INTEGER);
             } else {
-                try (PreparedStatement ps = cn.prepareStatement(sqlUpdate)) {
-                    int idx = fill(ps, c);
-                    ps.setInt(idx, c.getId());
-                    ps.executeUpdate();
-                    return findById(c.getId());
-                }
+                ps.setNull(5, Types.DATE);
+                ps.setNull(6, Types.INTEGER);
             }
+            ps.executeUpdate();
+
+            int newId;
+            try (ResultSet keys = ps.getGeneratedKeys()) {
+                if (!keys.next()) return null;
+                newId = keys.getInt(1);
+            }
+            return findById(newId);
         } catch (SQLException e) {
             throw new RuntimeException("Erreur JDBC save(Compte)", e);
         }
-    }
-
-
-    private int fill(PreparedStatement ps, Compte c) throws SQLException {
-        ps.setString(1, c.getNumero());
-        ps.setBigDecimal(2, c.getSolde());
-        ps.setDate(3, Date.valueOf(c.getDateOuverture()));
-        String disc = (c instanceof CompteEpargne) ? "EPARGNE" : "CHEQUE";
-        ps.setString(4, disc);
-        ps.setString(5, c.getType().name());
-
-        if (c instanceof CompteEpargne ce) {
-            if (ce.getDateDebut() != null) ps.setDate(6, Date.valueOf(ce.getDateDebut())); else ps.setNull(6, Types.DATE);
-            if (ce.getDureeBlocage() != null) ps.setInt(7, ce.getDureeBlocage()); else ps.setNull(7, Types.INTEGER);
-        } else {
-            ps.setNull(6, Types.DATE);
-            ps.setNull(7, Types.INTEGER);
-        }
-        return 8;
     }
 
     @Override
@@ -88,7 +51,9 @@ public final class CompteRepositoryJdbc implements CompteRepository {
         try (Connection cn = MysqlData.getConnection();
              PreparedStatement ps = cn.prepareStatement(sql)) {
             ps.setString(1, numero);
-            try (ResultSet rs = ps.executeQuery()) { return rs.next(); }
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
         } catch (SQLException e) {
             throw new RuntimeException("Erreur JDBC existsByNumero", e);
         }
@@ -109,27 +74,65 @@ public final class CompteRepositoryJdbc implements CompteRepository {
 
     @Override
     public Compte findById(int id) {
-        final String sql = "SELECT * FROM compte WHERE id=?";
+        final String sql = """
+            SELECT id, numero, solde, date_ouverture, type_compte, date_debut_blocage, duree_blocage_mois
+            FROM compte WHERE id=?
+            """;
         try (Connection cn = MysqlData.getConnection();
              PreparedStatement ps = cn.prepareStatement(sql)) {
             ps.setInt(1, id);
-            try (ResultSet rs = ps.executeQuery()) { return rs.next() ? mapCompte(rs) : null; }
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) return null;
+
+                int cid = rs.getInt("id");
+                String numero = rs.getString("numero");
+                BigDecimal solde = rs.getBigDecimal("solde");
+                LocalDate dateOuverture = rs.getDate("date_ouverture").toLocalDate();
+                String type = rs.getString("type_compte");
+                Date dDebut = rs.getDate("date_debut_blocage");
+                Integer duree = (Integer) rs.getObject("duree_blocage_mois");
+
+                if ("EPARGNE".equalsIgnoreCase(type)) {
+                    LocalDate debut = dDebut == null ? null : dDebut.toLocalDate();
+                    return new CompteEpargne(cid, numero, solde, dateOuverture, debut, duree);
+                } else {
+                    return new CompteCheque(cid, numero, solde, dateOuverture);
+                }
+            }
         } catch (SQLException e) {
-            throw new RuntimeException("Erreur JDBC findById", e);
+            throw new RuntimeException("Erreur JDBC findById(Compte)", e);
         }
     }
 
     @Override
     public List<Compte> findAll() {
-        final String sql = "SELECT * FROM compte ORDER BY id";
-        List<Compte> list = new ArrayList<>();
+        final String sql = """
+            SELECT id, numero, solde, date_ouverture, type_compte, date_debut_blocage, duree_blocage_mois
+            FROM compte ORDER BY id
+            """;
+        List<Compte> out = new ArrayList<>();
         try (Connection cn = MysqlData.getConnection();
              PreparedStatement ps = cn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
-            while (rs.next()) list.add(mapCompte(rs));
-            return list;
+            while (rs.next()) {
+                int cid = rs.getInt("id");
+                String numero = rs.getString("numero");
+                BigDecimal solde = rs.getBigDecimal("solde");
+                LocalDate dateOuverture = rs.getDate("date_ouverture").toLocalDate();
+                String type = rs.getString("type_compte");
+                Date dDebut = rs.getDate("date_debut_blocage");
+                Integer duree = (Integer) rs.getObject("duree_blocage_mois");
+
+                if ("EPARGNE".equalsIgnoreCase(type)) {
+                    LocalDate debut = dDebut == null ? null : dDebut.toLocalDate();
+                    out.add(new CompteEpargne(cid, numero, solde, dateOuverture, debut, duree));
+                } else {
+                    out.add(new CompteCheque(cid, numero, solde, dateOuverture));
+                }
+            }
+            return out;
         } catch (SQLException e) {
-            throw new RuntimeException("Erreur JDBC findAll", e);
+            throw new RuntimeException("Erreur JDBC findAll(Compte)", e);
         }
     }
 }
