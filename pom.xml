@@ -7,7 +7,7 @@
   <!-- ⚠️ Vérifie que ce groupId est bien celui validé sur Central -->
   <groupId>io.github.mohmk10</groupId>
   <artifactId>repo-gestion-tr</artifactId>
-  <version>1.0.1</version>
+  <version>1.0.2</version>
   <packaging>jar</packaging>
 
   <name>repo-gestion-tr</name>
