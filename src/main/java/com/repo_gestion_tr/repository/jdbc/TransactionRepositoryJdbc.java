@@ -15,7 +15,7 @@ public final class TransactionRepositoryJdbc implements TransactionRepository {
     @Override
     public Transaction save(Transaction t) {
         final String sql = """
-            INSERT INTO transaction (montant, date_tr, type_tr, compte_id)
+            INSERT INTO `transaction` (montant, `date`, `type`, compte_id)
             VALUES (?, ?, ?, ?)
             """;
         try (Connection cn = MysqlData.getConnection();
@@ -40,7 +40,7 @@ public final class TransactionRepositoryJdbc implements TransactionRepository {
 
     @Override
     public Transaction findById(int id) {
-        final String sql = "SELECT id, montant, date_tr, type_tr, compte_id FROM transaction WHERE id=?";
+        final String sql = "SELECT id, montant, `date`, `type`, compte_id FROM `transaction` WHERE id=?";
         try (Connection cn = MysqlData.getConnection();
              PreparedStatement ps = cn.prepareStatement(sql)) {
             ps.setInt(1, id);
@@ -49,12 +49,11 @@ public final class TransactionRepositoryJdbc implements TransactionRepository {
 
                 int trId = rs.getInt("id");
                 double montant = rs.getDouble("montant");
-                LocalDate date = rs.getDate("date_tr").toLocalDate();
-                String typeStr = rs.getString("type_tr");
+                LocalDate date = rs.getDate("date").toLocalDate();
+                String typeStr = rs.getString("type");
                 int compteId = rs.getInt("compte_id");
 
                 Compte compte = fetchCompteById(cn, compteId);
-
                 TypeTransaction type = TypeTransaction.valueOf(typeStr.toUpperCase(Locale.ROOT));
                 return new Transaction(trId, montant, date, type, compte);
             }
@@ -65,7 +64,7 @@ public final class TransactionRepositoryJdbc implements TransactionRepository {
 
     @Override
     public List<Transaction> findAll() {
-        final String sql = "SELECT id, montant, date_tr, type_tr, compte_id FROM transaction ORDER BY id";
+        final String sql = "SELECT id, montant, `date`, `type`, compte_id FROM `transaction` ORDER BY id";
         List<Transaction> out = new ArrayList<>();
         try (Connection cn = MysqlData.getConnection();
              PreparedStatement ps = cn.prepareStatement(sql);
@@ -73,12 +72,11 @@ public final class TransactionRepositoryJdbc implements TransactionRepository {
             while (rs.next()) {
                 int trId = rs.getInt("id");
                 double montant = rs.getDouble("montant");
-                LocalDate date = rs.getDate("date_tr").toLocalDate();
-                String typeStr = rs.getString("type_tr");
+                LocalDate date = rs.getDate("date").toLocalDate();
+                String typeStr = rs.getString("type");
                 int compteId = rs.getInt("compte_id");
 
                 Compte compte = fetchCompteById(cn, compteId);
-
                 TypeTransaction type = TypeTransaction.valueOf(typeStr.toUpperCase(Locale.ROOT));
                 out.add(new Transaction(trId, montant, date, type, compte));
             }
@@ -90,19 +88,18 @@ public final class TransactionRepositoryJdbc implements TransactionRepository {
 
     @Override
     public List<Transaction> findByCompteId(int compteId) {
-        final String sql = "SELECT id, montant, date_tr, type_tr, compte_id FROM transaction WHERE compte_id=? ORDER BY id";
+        final String sql = "SELECT id, montant, `date`, `type`, compte_id FROM `transaction` WHERE compte_id=? ORDER BY id";
         List<Transaction> out = new ArrayList<>();
         try (Connection cn = MysqlData.getConnection();
              PreparedStatement ps = cn.prepareStatement(sql)) {
             ps.setInt(1, compteId);
             try (ResultSet rs = ps.executeQuery()) {
-                Compte compte = fetchCompteById(cn, compteId); // 1 requête compte pour la série
+                Compte compte = fetchCompteById(cn, compteId);
                 while (rs.next()) {
                     int trId = rs.getInt("id");
                     double montant = rs.getDouble("montant");
-                    LocalDate date = rs.getDate("date_tr").toLocalDate();
-                    String typeStr = rs.getString("type_tr");
-
+                    LocalDate date = rs.getDate("date").toLocalDate();
+                    String typeStr = rs.getString("type");
                     TypeTransaction type = TypeTransaction.valueOf(typeStr.toUpperCase(Locale.ROOT));
                     out.add(new Transaction(trId, montant, date, type, compte));
                 }
